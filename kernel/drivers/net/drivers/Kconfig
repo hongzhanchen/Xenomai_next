@@ -72,6 +72,10 @@ config XENO_DRIVERS_NET_DRV_IGB
     tristate "Intel(R) 82575 (Gigabit)"
 
 
+config XENO_DRIVERS_NET_DRV_IGC
+    depends on XENO_DRIVERS_NET && PCI
+    tristate "Intel(R) Ethernet Controller I225-LM/I225-V support"
+
 config XENO_DRIVERS_NET_DRV_R8169
     depends on XENO_DRIVERS_NET && PCI
     tristate "Realtek 8169 (Gigabit)"
@@ -130,20 +134,6 @@ config XENO_DRIVERS_NET_DRV_MACB
     help
     Driver for internal MAC-controller on AT91SAM926x microcontrollers.
     Porting by Cristiano Mantovani and Stefano Banzi (Marposs SpA).
-
-endif
-
-if ARM64
-
-config XENO_DRIVERS_NET_FEC
-    depends on XENO_DRIVERS_NET
-    tristate "Freescale FEC"
-    depends on ARCH_MXC || SOC_IMX28
-    select PHYLIB
-    imply PTP_1588_CLOCK
-    help
-    For built-in 10/100 Fast ethernet controller on Freescale i.MX
-    processors.
 
 endif
 
