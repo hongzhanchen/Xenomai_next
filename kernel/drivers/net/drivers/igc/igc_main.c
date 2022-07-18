@@ -17,6 +17,71 @@
 #include "igc.h"
 #include "igc_hw.h"
 
+// RTNET redefines
+#ifdef  NETIF_F_TSO
+#undef  NETIF_F_TSO
+#define NETIF_F_TSO 0
+#endif
+
+#ifdef  NETIF_F_TSO6
+#undef  NETIF_F_TSO6
+#define NETIF_F_TSO6 0
+#endif
+
+#ifdef  NETIF_F_HW_VLAN_TX
+#undef  NETIF_F_HW_VLAN_TX
+#define NETIF_F_HW_VLAN_TX 0
+#endif
+
+#ifdef  NETIF_F_HW_VLAN_RX
+#undef  NETIF_F_HW_VLAN_RX
+#define NETIF_F_HW_VLAN_RX 0
+#endif
+
+#ifdef  NETIF_F_HW_VLAN_FILTER
+#undef  NETIF_F_HW_VLAN_FILTER
+#define NETIF_F_HW_VLAN_FILTER 0
+#endif
+
+#ifdef  IGC_MAX_TX_QUEUES
+#undef  IGC_MAX_TX_QUEUES
+#define IGC_MAX_TX_QUEUES 1
+#endif
+
+#ifdef  IGC_MAX_RX_QUEUES
+#undef  IGC_MAX_RX_QUEUES
+#define IGC_MAX_RX_QUEUES 1
+#endif
+
+#ifdef CONFIG_IGC_NAPI
+#undef CONFIG_IGC_NAPI
+#endif
+
+#ifdef IGC_HAVE_TX_TIMEOUT
+#undef IGC_HAVE_TX_TIMEOUT
+#endif
+
+#ifdef ETHTOOL_GPERMADDR
+#undef ETHTOOL_GPERMADDR
+#endif
+
+#ifdef CONFIG_PM
+#undef CONFIG_PM
+#endif
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+#undef CONFIG_NET_POLL_CONTROLLER
+#endif
+
+#ifdef MAX_SKB_FRAGS
+#undef MAX_SKB_FRAGS
+#define MAX_SKB_FRAGS 1
+#endif
+
+#ifdef IGC_FRAMES_SUPPORT
+#undef IGC_FRAMES_SUPPORT
+#endif
+
 #define DRV_SUMMARY	"Intel(R) 2.5G Ethernet Linux Driver"
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
@@ -877,13 +942,6 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 	tx_buffer = first;
 
 	tx_desc->read.buffer_addr = cpu_to_le64(dma);
-	i++;
-	tx_desc++;
-	if (i == tx_ring->count) {
-		tx_desc = IGC_TX_DESC(tx_ring, 0);
-		i = 0;
-	}
-
 	/* write last descriptor with RS and EOP bits */
 	cmd_type |= size | IGC_TXD_DCMD;
 	tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
@@ -892,7 +950,12 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 	first->time_stamp = jiffies;
 	first->next_to_watch = tx_desc;
 
-	rtskb_tx_timestamp(skb);
+	i++;
+	tx_desc++;
+	if (i == tx_ring->count) {
+		tx_desc = IGC_TX_DESC(tx_ring, 0);
+		i = 0;
+	}
 
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
@@ -2651,7 +2714,6 @@ void igc_down(struct igc_adapter *adapter)
 			napi_disable(&adapter->q_vector[i]->napi);
 		}
 	}
-
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
@@ -3104,7 +3166,7 @@ static int igc_intr_msi(rtdm_irq_t *ih)
 
 	igc_poll(q_vector);
 
-	return IRQ_HANDLED;
+	return RTDM_IRQ_HANDLED;
 }
 
 /**
@@ -3130,24 +3192,12 @@ static int igc_intr(rtdm_irq_t *ih)
 
 	igc_write_itr(q_vector);
 
-	if (icr & IGC_ICR_DRSTA)
-		schedule_work(&adapter->reset_task);
 
-	if (icr & IGC_ICR_DOUTSYNC) {
-		/* HW is reporting DMA is out of sync */
-		adapter->stats.doosync++;
-	}
+	igc_other_handler(adapter, icr, false);
 
-	if (icr & (IGC_ICR_RXSEQ | IGC_ICR_LSC)) {
-		hw->mac.get_link_status = 1;
-		/* guard against interrupt when we're going down */
-		if (!test_bit(__IGC_DOWN, &adapter->state))
-			mod_timer(&adapter->watchdog_timer, jiffies + 1);
-	}
+	igc_poll(q_vector);
 
-	napi_schedule(&q_vector->napi);
-
-	return IRQ_HANDLED;
+	return RTDM_IRQ_HANDLED;
 }
 
 static void igc_free_irq(struct igc_adapter *adapter)
