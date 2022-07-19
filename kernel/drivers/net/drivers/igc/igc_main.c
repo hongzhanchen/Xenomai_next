@@ -1834,8 +1834,6 @@ static void igc_reset_q_vector(struct igc_adapter *adapter, int v_idx)
 
 	if (q_vector->rx.ring)
 		adapter->rx_ring[q_vector->rx.ring->queue_index] = NULL;
-     /* TODO */
-	//netif_napi_del(&q_vector->napi);
 }
 
 /**
@@ -2260,12 +2258,6 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
 	if (!q_vector)
 		return -ENOMEM;
 
-#if 0
-	/* initialize NAPI */
-	netif_napi_add(adapter->netdev, &q_vector->napi,
-		       igc_poll, 64);
-#endif
-
 	/* tie q_vector and adapter together */
 	adapter->q_vector[v_idx] = q_vector;
 	q_vector->adapter = adapter;
@@ -2676,7 +2668,6 @@ void igc_down(struct igc_adapter *adapter)
 	struct rtnet_device *netdev = adapter->netdev;
 	struct igc_hw *hw = &adapter->hw;
 	u32 tctl, rctl;
-	int i = 0;
 
 	set_bit(__IGC_DOWN, &adapter->state);
 
@@ -2708,12 +2699,6 @@ void igc_down(struct igc_adapter *adapter)
 
 	adapter->flags &= ~IGC_FLAG_NEED_LINK_UPDATE;
 
-	for (i = 0; i < adapter->num_q_vectors; i++) {
-		if (adapter->q_vector[i]) {
-			napi_synchronize(&adapter->q_vector[i]->napi);
-			napi_disable(&adapter->q_vector[i]->napi);
-		}
-	}
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
@@ -3321,23 +3306,8 @@ static int __igc_open(struct rtnet_device *netdev, bool resuming)
 	err = igc_request_irq(adapter);
 	if (err)
 		goto err_req_irq;
-#if 0
-	/* Notify the stack of the actual queue counts. */
-	err = netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
-	if (err)
-		goto err_set_queues;
-
-	err = netif_set_real_num_rx_queues(netdev, adapter->num_rx_queues);
-	if (err)
-		goto err_set_queues;
-#endif 
 
 	clear_bit(__IGC_DOWN, &adapter->state);
-
-#if 0
-	for (i = 0; i < adapter->num_q_vectors; i++)
-		napi_enable(&adapter->q_vector[i]->napi);
-#endif
 
 	/* Clear any pending interrupts. */
 	rd32(IGC_ICR);
