@@ -1771,16 +1771,8 @@ static void igc_irq_disable(struct igc_adapter *adapter)
 	wr32(IGC_IMC, ~0);
 	wrfl();
 
-	if (adapter->msix_entries) {
-		int vector = 0, i;
+	msleep(10);
 
-		synchronize_irq(adapter->msix_entries[vector++].vector);
-
-		for (i = 0; i < adapter->num_q_vectors; i++)
-			synchronize_irq(adapter->msix_entries[vector++].vector);
-	} else {
-		synchronize_irq(adapter->pdev->irq);
-	}
 }
 
 void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
@@ -2240,7 +2232,7 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
 {
 	struct igc_q_vector *q_vector;
 	struct igc_ring *ring;
-	int ring_count;
+	int ring_count, size;
 
 	/* igc only supports 1 Tx and/or 1 Rx queue per vector */
 	if (txr_count > 1 || rxr_count > 1)
@@ -2250,11 +2242,15 @@ static int igc_alloc_q_vector(struct igc_adapter *adapter,
 
 	/* allocate q_vector and rings */
 	q_vector = adapter->q_vector[v_idx];
+	size = sizeof(struct igc_q_vector) +
+		(sizeof(struct igc_ring) * ring_count);
+
 	if (!q_vector)
-		q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
+		q_vector = kzalloc(size,
 				   GFP_KERNEL);
 	else
-		memset(q_vector, 0, struct_size(q_vector, ring, ring_count));
+		memset(q_vector, 0, size);
+
 	if (!q_vector)
 		return -ENOMEM;
 
@@ -2881,8 +2877,8 @@ static int igc_request_msix(struct igc_adapter *adapter)
 
 		err = rtdm_irq_request(&adapter->msix_irq_handle[vector],
 				adapter->msix_entries[vector].vector,
-				  igc_msix_ring, 0, q_vector->name,
-				  q_vector);
+				igc_msix_ring, 0, q_vector->name,
+				q_vector);
 		if (err)
 			goto err_free;
 	}
