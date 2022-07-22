@@ -2543,6 +2543,9 @@ void igc_update_stats(struct igc_adapter *adapter)
 		packets += ring->rx_stats.packets;
 	}
 
+	net_stats->rx_bytes = bytes;
+	net_stats->rx_packets = packets;
+
 	packets = 0;
 	bytes = 0;
 	for (i = 0; i < adapter->num_tx_queues; i++) {
