@@ -902,6 +902,7 @@ static void igc_tx_olinfo_status(struct igc_ring *tx_ring,
 {
 	u32 olinfo_status = paylen << IGC_ADVTXD_PAYLEN_SHIFT;
 
+#if 0
 	/* insert L4 checksum */
 	olinfo_status |= (tx_flags & IGC_TX_FLAGS_CSUM) *
 			  ((IGC_TXD_POPTS_TXSM << 8) /
@@ -911,6 +912,7 @@ static void igc_tx_olinfo_status(struct igc_ring *tx_ring,
 	olinfo_status |= (tx_flags & IGC_TX_FLAGS_IPV4) *
 			  (((IGC_TXD_POPTS_IXSM << 8)) /
 			  IGC_TX_FLAGS_IPV4);
+#endif
 
 	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 }
