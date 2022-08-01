@@ -1945,6 +1945,9 @@ static void igc_set_itr(struct igc_q_vector *q_vector)
 	u32 new_itr = q_vector->itr_val;
 	u8 current_itr = 0;
 
+	if (!InterruptThrottle)
+		return;
+
 	/* for non-gigabit speeds, just fix the interrupt rate at 4000 */
 	switch (adapter->link_speed) {
 	case SPEED_10:
