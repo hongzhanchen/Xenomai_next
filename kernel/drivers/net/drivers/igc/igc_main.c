@@ -3983,7 +3983,7 @@ static void igc_remove(struct pci_dev *pdev)
 {
 	struct rtnet_device *netdev = pci_get_drvdata(pdev);
 	struct igc_adapter *adapter = rtnetdev_priv(netdev);
-
+	struct igc_hw *hw = &adapter->hw;
 
 	rtdev_down(netdev);
 	igc_down(adapter);
@@ -4014,7 +4014,7 @@ static void igc_remove(struct pci_dev *pdev)
 	rt_unregister_rtnetdev(netdev);
 
 	igc_clear_interrupt_scheme(adapter);
-	pci_iounmap(pdev, adapter->io_addr);
+	pci_iounmap(pdev, hw->hw_addr);
 	pci_release_mem_regions(pdev);
 
 	rtdev_free(netdev);
