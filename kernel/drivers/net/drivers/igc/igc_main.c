@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c)  2018 Intel Corporation */
+/* Copyright (c)  2018 Intel Corporation
+ * RTnet port  2022 Hongzhan Chen<hongzhan.chen@intel.com>
+ */
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -173,13 +175,6 @@ void igc_reset(struct igc_adapter *adapter)
 	if (!rtnetif_running(adapter->netdev))
 		igc_power_down_phy_copper_base(&adapter->hw);
 
-#if 0
-	/* Re-enable PTP, where applicable. */
-	igc_ptp_reset(adapter);
-
-	/* Re-enable TSN offloading, where applicable. */
-	igc_tsn_offload_apply(adapter);
-#endif
 	igc_get_phy_info(hw);
 }
 
@@ -590,17 +585,6 @@ static void igc_configure_rx_ring(struct igc_adapter *adapter,
 	rxdctl |= IGC_RX_HTHRESH << 8;
 	rxdctl |= IGC_RX_WTHRESH << 16;
 
-	/*TODO*/
-#if 0
-	/* initialize rx_buffer_info */
-	memset(ring->rx_buffer_info, 0,
-	       sizeof(struct igc_rx_buffer) * ring->count);
-
-	/* initialize Rx descriptor 0 */
-	rx_desc = IGC_RX_DESC(ring, 0);
-	rx_desc->wb.upper.length = 0;
-#endif
-
 	/* enable receive descriptor fetching */
 	rxdctl |= IGC_RXDCTL_QUEUE_ENABLE;
 
@@ -699,8 +683,6 @@ static void igc_setup_mrqc(struct igc_adapter *adapter)
 			(j * num_rx_queues) / IGC_RETA_SIZE;
 		adapter->rss_indir_tbl_init = num_rx_queues;
 	}
-	/* TODO */
-	//igc_write_rss_indir_tbl(adapter);
 
 	/* Disable raw packet checksumming so that RSS hash is placed in
 	 * descriptor on writeback.  No need to enable TCP/UDP/IP checksum
@@ -819,32 +801,7 @@ static int igc_write_mc_addr_list(struct rtnet_device *netdev)
 {
 	struct igc_adapter *adapter = rtnetdev_priv(netdev);
 	struct igc_hw *hw = &adapter->hw;
-	/* TODO */
-#if 0
-	struct netdev_hw_addr *ha;
-	u8  *mta_list;
-	int i;
 
-	if (netdev_mc_empty(netdev)) {
-		/* nothing to program, so clear mc list */
-		igc_update_mc_addr_list(hw, NULL, 0);
-		return 0;
-	}
-
-	mta_list = kcalloc(netdev_mc_count(netdev), 6, GFP_ATOMIC);
-	if (!mta_list)
-		return -ENOMEM;
-
-	/* The shared function expects a packed array of only addresses. */
-	i = 0;
-	netdev_for_each_mc_addr(ha, netdev)
-		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
-
-	igc_update_mc_addr_list(hw, mta_list, i);
-	kfree(mta_list);
-
-	return netdev_mc_count(netdev);
-#else
 	igc_update_mc_addr_list(hw, NULL, 0);
 
 	return 0;
@@ -1036,7 +993,15 @@ static netdev_tx_t igc_xmit_frame(struct rtskb *skb,
 {
 	struct igc_adapter *adapter = rtnetdev_priv(netdev);
 
-	/* TODO compare to igb there is addition check */
+	if (test_bit(__IGC_DOWN, &adapter->state)) {
+		kfree_rtskb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	if (skb->len <= 0) {
+		kfree_rtskb(skb);
+		return NETDEV_TX_OK;
+	}
 
 	/* The minimum packet size with TCTL.PSP set is 17 so pad the skb
 	 * in order to meet this minimum size requirement.
@@ -1299,7 +1264,7 @@ static bool igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		}
 
 		rx_desc = IGC_RX_DESC(rx_ring, rx_ring->next_to_clean);
-		/* TODO */
+
 		if (!rx_desc->wb.upper.status_error)
 			break;
 
@@ -1546,15 +1511,6 @@ static void igc_set_rx_mode(struct rtnet_device *netdev)
 	u32 rctl = 0, rlpml = MAX_JUMBO_FRAME_SIZE;
 	int count = 0;
 
-	/* TODO */
-#if 0
-	/* Check for Promiscuous and All Multicast modes */
-	rctl = rd32(E1000_RCTL);
-
-	/* clear the effected bits */
-	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_VFE);
-#endif
-
 	/* Check for Promiscuous and All Multicast modes */
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= IGC_RCTL_UPE | IGC_RCTL_MPE;
@@ -1603,10 +1559,6 @@ static void igc_configure(struct igc_adapter *adapter)
 	igc_setup_tctl(adapter);
 	igc_setup_mrqc(adapter);
 	igc_setup_rctl(adapter);
-
-	/* TODO */
-	//igc_set_default_mac_filter(adapter);
-	//igc_restore_nfc_rules(adapter);
 
 	igc_configure_tx(adapter);
 	igc_configure_rx(adapter);
@@ -2675,20 +2627,10 @@ void igc_down(struct igc_adapter *adapter)
 
 	set_bit(__IGC_DOWN, &adapter->state);
 
-	//igc_ptp_suspend(adapter);
-
 	/* disable receives in the hardware */
 	rctl = rd32(IGC_RCTL);
 	wr32(IGC_RCTL, rctl & ~IGC_RCTL_EN);
-	/* flush and sleep below */
-	/* TODO &*/
-#if 0
-	/* set trans_start so we don't get spurious watchdogs during reset */
-	netif_trans_update(netdev);
 
-	netif_carrier_off(netdev);
-	netif_tx_stop_all_queues(netdev);
-#endif
 	rtnetif_stop_queue(netdev);
 
 	/* disable transmits in the hardware */
@@ -3559,7 +3501,6 @@ static int igc_ioctl(struct rtnet_device *netdev, struct ifreq *ifr, int cmd)
 	if (rtdm_in_rt_context())
 		return -ENOSYS;
 
-	/* TODO why here do not operate MII as igb?*/
 	switch (cmd) {
 	case SIOCGHWTSTAMP:
 		return igc_ptp_get_ts_config(netdev, ifr);
@@ -3834,7 +3775,6 @@ static int igc_probe(struct pci_dev *pdev,
 		goto err_sw_init;
 
 	/* Add supported features to the features list*/
-	/* TODO */
 	netdev->features |= NETIF_F_SG;
 	netdev->features |= NETIF_F_TSO;
 	netdev->features |= NETIF_F_TSO6;
@@ -3854,12 +3794,6 @@ static int igc_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-	/* TODO */
-#if 0
-	/* MTU range: 68 - 9216 */
-	netdev->min_mtu = ETH_MIN_MTU;
-	netdev->max_mtu = MAX_STD_JUMBO_FRAME_SIZE;
-#endif
 	/* before reading the NVM, reset the controller to put the device in a
 	 * known good starting state
 	 */
@@ -3989,16 +3923,6 @@ static void igc_remove(struct pci_dev *pdev)
 	igc_down(adapter);
 
 	pm_runtime_get_noresume(&pdev->dev);
-
-	/* TODO */
-
-	//igc_flush_nfc_rules(adapter);
-
-	//igc_ptp_stop(adapter);
-
-	//igc_led_destroy(adapter);
-
-//	set_bit(__IGC_DOWN, &adapter->state);
 
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
