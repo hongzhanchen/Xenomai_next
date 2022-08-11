@@ -3961,7 +3961,7 @@ static int __igc_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	rtnetif_device_detach(netdev);
 
 	if (rtnetif_running(netdev))
-
+		 __igc_close(netdev, true);
 	//igc_ptp_suspend(adapter);
 
 	igc_clear_interrupt_scheme(adapter);
