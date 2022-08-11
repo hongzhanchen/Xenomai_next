@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c)  2018 Intel Corporation
- * RTnet port  2022 Hongzhan Chen<hongzhan.chen@intel.com>
- */
+/* Copyright (c)  2018 Intel Corporation */
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -20,38 +18,38 @@
 #include "igc_hw.h"
 
 // RTNET redefines
-#ifdef  NETIF_F_TSO
-#undef  NETIF_F_TSO
+#ifdef NETIF_F_TSO
+#undef NETIF_F_TSO
 #define NETIF_F_TSO 0
 #endif
 
-#ifdef  NETIF_F_TSO6
-#undef  NETIF_F_TSO6
+#ifdef NETIF_F_TSO6
+#undef NETIF_F_TSO6
 #define NETIF_F_TSO6 0
 #endif
 
-#ifdef  NETIF_F_HW_VLAN_TX
-#undef  NETIF_F_HW_VLAN_TX
+#ifdef NETIF_F_HW_VLAN_TX
+#undef NETIF_F_HW_VLAN_TX
 #define NETIF_F_HW_VLAN_TX 0
 #endif
 
-#ifdef  NETIF_F_HW_VLAN_RX
-#undef  NETIF_F_HW_VLAN_RX
+#ifdef NETIF_F_HW_VLAN_RX
+#undef NETIF_F_HW_VLAN_RX
 #define NETIF_F_HW_VLAN_RX 0
 #endif
 
-#ifdef  NETIF_F_HW_VLAN_FILTER
-#undef  NETIF_F_HW_VLAN_FILTER
+#ifdef NETIF_F_HW_VLAN_FILTER
+#undef NETIF_F_HW_VLAN_FILTER
 #define NETIF_F_HW_VLAN_FILTER 0
 #endif
 
-#ifdef  IGC_MAX_TX_QUEUES
-#undef  IGC_MAX_TX_QUEUES
+#ifdef IGC_MAX_TX_QUEUES
+#undef IGC_MAX_TX_QUEUES
 #define IGC_MAX_TX_QUEUES 1
 #endif
 
-#ifdef  IGC_MAX_RX_QUEUES
-#undef  IGC_MAX_RX_QUEUES
+#ifdef IGC_MAX_RX_QUEUES
+#undef IGC_MAX_RX_QUEUES
 #define IGC_MAX_RX_QUEUES 1
 #endif
 
@@ -102,7 +100,7 @@ static const char igc_copyright[] =
 	"Copyright(c) 2018 Intel Corporation.";
 
 #define MAX_UNITS 8
-static int InterruptThrottle = 0;
+static int InterruptThrottle;
 module_param(InterruptThrottle, uint, 0);
 MODULE_PARM_DESC(InterruptThrottle, "Throttle interrupts (boolean, false by default)");
 
@@ -530,7 +528,7 @@ static int igc_setup_all_rx_resources(struct igc_adapter *adapter)
 		err = igc_setup_rx_resources(adapter->rx_ring[i]);
 		if (err) {
 			dev_err(&pdev->dev,
-				       	"Error on Rx queue %u setup\n", i);
+					"Error on Rx queue %u setup\n", i);
 			for (i--; i >= 0; i--)
 				igc_free_rx_resources(adapter->rx_ring[i]);
 			break;
@@ -805,7 +803,6 @@ static int igc_write_mc_addr_list(struct rtnet_device *netdev)
 	igc_update_mc_addr_list(hw, NULL, 0);
 
 	return 0;
-#endif
 }
 
 static int __igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
@@ -858,18 +855,6 @@ static void igc_tx_olinfo_status(struct igc_ring *tx_ring,
 				 u32 tx_flags, unsigned int paylen)
 {
 	u32 olinfo_status = paylen << IGC_ADVTXD_PAYLEN_SHIFT;
-
-#if 0
-	/* insert L4 checksum */
-	olinfo_status |= (tx_flags & IGC_TX_FLAGS_CSUM) *
-			  ((IGC_TXD_POPTS_TXSM << 8) /
-			  IGC_TX_FLAGS_CSUM);
-
-	/* insert IPv4 checksum */
-	olinfo_status |= (tx_flags & IGC_TX_FLAGS_IPV4) *
-			  (((IGC_TXD_POPTS_IXSM << 8)) /
-			  IGC_TX_FLAGS_IPV4);
-#endif
 
 	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 }
@@ -1254,6 +1239,7 @@ static bool igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 	u16 cleaned_count = igc_desc_unused(rx_ring);
 	nanosecs_abs_t time_stamp = rtdm_clock_read();
 	struct rtskb *skb =  rx_ring->skb;
+
 	while (likely(total_packets < budget)) {
 		union igc_adv_rx_desc *rx_desc;
 
@@ -1478,20 +1464,22 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector)
  **/
 static int igc_write_uc_addr_list(struct rtnet_device *netdev)
 {
-        struct igc_adapter *adapter = rtnetdev_priv(netdev);
-        struct igc_hw *hw = &adapter->hw;
-        unsigned int vfn = 0;
-        unsigned int rar_entries = hw->mac.rar_entry_count - (vfn + 1);
-        int count = 0;
+	struct igc_adapter *adapter = rtnetdev_priv(netdev);
+	struct igc_hw *hw = &adapter->hw;
+	unsigned int vfn = 0;
+	unsigned int rar_entries = hw->mac.rar_entry_count - (vfn + 1);
+	int count = 0;
 
-        /* write the addresses in reverse order to avoid write combining */
-        for (; rar_entries > 0 ; rar_entries--) {
-                wr32(IGC_RAH(rar_entries), 0);
-                wr32(IGC_RAL(rar_entries), 0);
-        }
-        wrfl();
 
-        return count;
+	/* write the addresses in reverse order to avoid write combining */
+	for (; rar_entries > 0 ; rar_entries--) {
+		wr32(IGC_RAH(rar_entries), 0);
+		wr32(IGC_RAL(rar_entries), 0);
+	}
+
+	wrfl();
+
+	return count;
 }
 
 
@@ -2492,9 +2480,8 @@ void igc_update_stats(struct igc_adapter *adapter)
 		if (hw->mac.type >= igc_i225)
 			wr32(IGC_RQDPC(i), 0);
 
-		if (rqdpc) {
+		if (rqdpc)
 			ring->rx_stats.drops += rqdpc;
-		}
 
 		bytes += ring->rx_stats.bytes;
 		packets += ring->rx_stats.packets;
@@ -3140,10 +3127,9 @@ static void igc_free_irq(struct igc_adapter *adapter)
 
 		for (i = 0; i < adapter->num_q_vectors; i++)
 			rtdm_irq_free(&adapter->msix_irq_handle[vector++]);
-	} else 
+	} else
 		rtdm_irq_free(&adapter->irq_handle);
-	
-	
+
 }
 
 /**
@@ -3623,6 +3609,7 @@ err_inval:
 static void igc_nrtsig_watchdog(rtdm_nrtsig_t *sig, void *data)
 {
 	struct igc_adapter *adapter = data;
+
 	mod_timer(&adapter->watchdog_timer, jiffies + 1);
 }
 
@@ -3751,10 +3738,7 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev->map_rtskb = igc_map_rtskb;
 	netdev->unmap_rtskb = igc_unmap_rtskb;
 	netdev->do_ioctl = igc_ioctl;
-#if 0
-	igc_ethtool_set_ops(netdev);
-	netdev->watchdog_timeo = 5 * HZ;
-#endif
+
 	netdev->mem_start = pci_resource_start(pdev, 0);
 	netdev->mem_end = pci_resource_end(pdev, 0);
 
@@ -3848,9 +3832,7 @@ static int igc_probe(struct pci_dev *pdev,
 
 	device_set_wakeup_enable(&adapter->pdev->dev,
 				 adapter->flags & IGC_FLAG_WOL_SUPPORTED);
-#if 0
-	igc_ptp_init(adapter);
-#endif
+
 	/* reset the hardware with the new settings */
 	igc_reset(adapter);
 
@@ -3961,8 +3943,7 @@ static int __igc_shutdown(struct pci_dev *pdev, bool *enable_wake,
 	rtnetif_device_detach(netdev);
 
 	if (rtnetif_running(netdev))
-		 __igc_close(netdev, true);
-	//igc_ptp_suspend(adapter);
+		__igc_close(netdev, true);
 
 	igc_clear_interrupt_scheme(adapter);
 
