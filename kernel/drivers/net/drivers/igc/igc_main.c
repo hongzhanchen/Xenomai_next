@@ -3675,8 +3675,10 @@ static int igc_probe(struct pci_dev *pdev,
 	int err, pci_using_dac;
 
 	err = pci_enable_device_mem(pdev);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev, "fail to enable device mem\n");
 		return err;
+	}
 
 	pci_using_dac = 0;
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -3692,8 +3694,10 @@ static int igc_probe(struct pci_dev *pdev,
 	}
 
 	err = pci_request_mem_regions(pdev, igc_driver_name);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev, "fail to request mem regions\n");
 		goto err_pci_reg;
+	}
 
 	pci_enable_pcie_error_reporting(pdev);
 
@@ -3703,8 +3707,10 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev = rt_alloc_etherdev(sizeof(*adapter),
 				2 * IGC_DEFAULT_RXD + IGC_DEFAULT_TXD);
 
-	if (!netdev)
+	if (!netdev) {
+		dev_err(&pdev->dev, "fail to alloc etherdev\n");
 		goto err_alloc_etherdev;
+	}
 
 	rtdev_alloc_name(netdev, "rteth%d");
 	rt_rtdev_connect(netdev, &RTDEV_manager);
@@ -3722,14 +3728,18 @@ static int igc_probe(struct pci_dev *pdev,
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	err = pci_save_state(pdev);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev, "fail to save state\n");
 		goto err_ioremap;
+	}
 
 	err = -EIO;
 	hw->hw_addr = ioremap(pci_resource_start(pdev, 0),
 				   pci_resource_len(pdev, 0));
-	if (!hw->hw_addr)
+	if (!hw->hw_addr) {
+		dev_err(&pdev->dev, "fail to ioremap\n");
 		goto err_ioremap;
+	}
 
 	netdev->open = igc_open;
 	netdev->stop = igc_close;
@@ -3755,8 +3765,11 @@ static int igc_probe(struct pci_dev *pdev,
 
 	/* Initialize skew-specific constants */
 	err = ei->get_invariants(hw);
-	if (err)
+	if (err) {
+		
+		dev_err(&pdev->dev, "fail to get invariants\n");
 		goto err_sw_init;
+	}
 
 	/* Add supported features to the features list*/
 	netdev->features |= NETIF_F_SG;
@@ -3772,8 +3785,10 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 	/* setup the private structure */
 	err = igc_sw_init(adapter);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev, "fail to do sw init\n");
 		goto err_sw_init;
+	}
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -3843,8 +3858,10 @@ static int igc_probe(struct pci_dev *pdev,
 
 	strncpy(netdev->name, "rteth%d", IFNAMSIZ);
 	err = rt_register_rtnetdev(netdev);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev, "fail to register rtnetdev\n");
 		goto err_register;
+	}
 
 	 /* carrier off reporting is important to ethtool even BEFORE open */
 	rtnetif_carrier_off(netdev);
